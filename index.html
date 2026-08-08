@@ -2064,7 +2064,10 @@ function closeSaveOverlay() {
 }
 
 function getCaptureScale(w, h) {
-  const want = Math.max(2, Math.min(3, Math.round((window.devicePixelRatio || 2) * 10) / 10));
+  const dpr = window.devicePixelRatio || 2;
+  let want = Math.max(2, Math.min(3, Math.round(dpr * 10) / 10));
+  // 移动端降低倍率，避免画布超过设备上限导致 toBlob/toDataURL 失败（表现为保存乱码/失败）
+  if (isMobileSave()) want = Math.min(want, 2);
   return want;
 }
 
@@ -2199,8 +2202,8 @@ function captureSlice(node, width, y, h, scale) {
   return html2canvas(node, {
     backgroundColor: "#fff",
     logging: false,
-    useCORS: false,
-    allowTaint: true,
+    useCORS: true,
+    allowTaint: false,
     foreignObjectRendering: false,
     removeContainer: true,
     scale,
@@ -2229,7 +2232,9 @@ function stitchCanvases(parts, width, fullH, scale) {
   return out;
 }
 
-function capturePoster(poster) {
+async function capturePoster(poster) {
+  // 等字体就绪，避免 iOS/微信下中文渲染成方块（乱码）
+  if (document.fonts && document.fonts.ready) { try { await document.fonts.ready; } catch (_) {} }
   const { wrap, node, width, height } = buildCaptureNode(poster);
   const maxSide = 8192;
   const runAtScale = async (scale) => {
@@ -2338,8 +2343,24 @@ function deliverImageCanvas(canvas, filename) {
     }
     return;
   }
+  const downloadByDataUrl = () => {
+    try {
+      const dataUrl = canvas.toDataURL("image/png");
+      if (!dataUrl || dataUrl.length < 200) throw new Error("empty");
+      const a = document.createElement("a");
+      a.href = dataUrl;
+      a.download = filename;
+      a.style.display = "none";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      showSaveOverlay(dataUrl, filename, dataUrlToBlob(dataUrl));
+    } catch (_) {
+      toast("生成失败，请对海报区域截屏保存", true);
+    }
+  };
   canvas.toBlob(b => {
-    if (!b) return openPosterWindow();
+    if (!b) return downloadByDataUrl();
     const url = URL.createObjectURL(b);
     try {
       const a = document.createElement("a");
@@ -3378,7 +3399,10 @@ function closeSaveOverlay() {
 }
 
 function getCaptureScale(w, h) {
-  const want = Math.max(2, Math.min(3, Math.round((window.devicePixelRatio || 2) * 10) / 10));
+  const dpr = window.devicePixelRatio || 2;
+  let want = Math.max(2, Math.min(3, Math.round(dpr * 10) / 10));
+  // 移动端降低倍率，避免画布超过设备上限导致 toBlob/toDataURL 失败（表现为保存乱码/失败）
+  if (isMobileSave()) want = Math.min(want, 2);
   return want;
 }
 
@@ -3514,8 +3538,8 @@ function captureSlice(node, width, y, h, scale) {
   return html2canvas(node, {
     backgroundColor: "#fff",
     logging: false,
-    useCORS: false,
-    allowTaint: true,
+    useCORS: true,
+    allowTaint: false,
     foreignObjectRendering: false,
     removeContainer: true,
     scale,
@@ -3544,7 +3568,9 @@ function stitchCanvases(parts, width, fullH, scale) {
   return out;
 }
 
-function capturePoster(poster) {
+async function capturePoster(poster) {
+  // 等字体就绪，避免 iOS/微信下中文渲染成方块（乱码）
+  if (document.fonts && document.fonts.ready) { try { await document.fonts.ready; } catch (_) {} }
   const { wrap, node, width, height } = buildCaptureNode(poster);
   const maxSide = 8192;
   const runAtScale = async (scale) => {
@@ -3653,8 +3679,24 @@ function deliverImageCanvas(canvas, filename) {
     }
     return;
   }
+  const downloadByDataUrl = () => {
+    try {
+      const dataUrl = canvas.toDataURL("image/png");
+      if (!dataUrl || dataUrl.length < 200) throw new Error("empty");
+      const a = document.createElement("a");
+      a.href = dataUrl;
+      a.download = filename;
+      a.style.display = "none";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      showSaveOverlay(dataUrl, filename, dataUrlToBlob(dataUrl));
+    } catch (_) {
+      toast("生成失败，请对海报区域截屏保存", true);
+    }
+  };
   canvas.toBlob(b => {
-    if (!b) return openPosterWindow();
+    if (!b) return downloadByDataUrl();
     const url = URL.createObjectURL(b);
     try {
       const a = document.createElement("a");
@@ -5581,7 +5623,7 @@ function getCaptureScale(cssW, cssH) {
   return Math.round(scale * 100) / 100;
 }
 
-async function capturePoster(poster) {
+async async function capturePoster(poster) {
   if (typeof window.html2canvas === "function") {
     try {
       return await capturePosterViaHtml2Canvas(poster);
