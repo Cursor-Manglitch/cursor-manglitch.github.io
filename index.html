@@ -5639,7 +5639,7 @@ function getCaptureScale(cssW, cssH) {
   return Math.round(scale * 100) / 100;
 }
 
-async async function capturePoster(poster) {
+async function capturePoster(poster) {
   if (typeof window.html2canvas === "function") {
     try {
       return await capturePosterViaHtml2Canvas(poster);
