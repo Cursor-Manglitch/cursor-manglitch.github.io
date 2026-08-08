@@ -2268,7 +2268,7 @@ async function capturePoster(poster) {
     .finally(() => wrap.remove());
 }
 
-function showSaveOverlay(dataUrl, filename, blob) {
+function showSaveOverlay(src, filename, blob) {
   closeSaveOverlay();
   const overlay = document.createElement("div");
   overlay.id = "saveOverlay";
@@ -2329,17 +2329,25 @@ function showSaveOverlay(dataUrl, filename, blob) {
 
   img.onload = () => toast(isIOS() ? "长按绿色框内图片保存" : "长按图片或点按钮保存");
   img.onerror = () => toast("图片显示失败，请截屏保存", true);
-  img.src = dataUrl;
+  img.src = src;
 }
 
 function deliverImageCanvas(canvas, filename) {
   if (isMobileSave()) {
+    // 移动端：用 toBlob + Blob URL 显示，避免 data: 长串在微信里无法长按保存/变乱码
+    const show = (blob) => {
+      let src;
+      if (blob) {
+        try { src = URL.createObjectURL(blob); } catch (_) { src = null; }
+      }
+      if (!src) src = canvas.toDataURL("image/png");
+      showSaveOverlay(src, filename, blob || dataUrlToBlob(src));
+    };
     try {
-      const dataUrl = canvas.toDataURL("image/png");
-      if (!dataUrl || dataUrl.length < 200) throw new Error("empty");
-      showSaveOverlay(dataUrl, filename, dataUrlToBlob(dataUrl));
+      if (canvas.toBlob) canvas.toBlob(b => show(b), "image/png");
+      else show(null);
     } catch (_) {
-      toast("生成失败，请对海报区域截屏（电源+音量上）", true);
+      show(null);
     }
     return;
   }
@@ -3604,7 +3612,7 @@ async function capturePoster(poster) {
     .finally(() => wrap.remove());
 }
 
-function showSaveOverlay(dataUrl, filename, blob) {
+function showSaveOverlay(src, filename, blob) {
   closeSaveOverlay();
   const overlay = document.createElement("div");
   overlay.id = "saveOverlay";
@@ -3665,17 +3673,25 @@ function showSaveOverlay(dataUrl, filename, blob) {
 
   img.onload = () => toast(isIOS() ? "长按绿色框内图片保存" : "长按图片或点按钮保存");
   img.onerror = () => toast("图片显示失败，请截屏保存", true);
-  img.src = dataUrl;
+  img.src = src;
 }
 
 function deliverImageCanvas(canvas, filename) {
   if (isMobileSave()) {
+    // 移动端：用 toBlob + Blob URL 显示，避免 data: 长串在微信里无法长按保存/变乱码
+    const show = (blob) => {
+      let src;
+      if (blob) {
+        try { src = URL.createObjectURL(blob); } catch (_) { src = null; }
+      }
+      if (!src) src = canvas.toDataURL("image/png");
+      showSaveOverlay(src, filename, blob || dataUrlToBlob(src));
+    };
     try {
-      const dataUrl = canvas.toDataURL("image/png");
-      if (!dataUrl || dataUrl.length < 200) throw new Error("empty");
-      showSaveOverlay(dataUrl, filename, dataUrlToBlob(dataUrl));
+      if (canvas.toBlob) canvas.toBlob(b => show(b), "image/png");
+      else show(null);
     } catch (_) {
-      toast("生成失败，请对海报区域截屏（电源+音量上）", true);
+      show(null);
     }
     return;
   }
